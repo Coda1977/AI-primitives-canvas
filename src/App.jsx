@@ -398,6 +398,23 @@ Rules:
 
   const getTotalNotes = () => Object.values(notes).reduce((sum, arr) => sum + arr.length, 0);
   const getPriorityCount = () => Object.values(notes).flat().filter(n => n.priority).length;
+  const hasExistingSession = () => getTotalNotes() > 0 || profile.role;
+
+  const resetAll = () => {
+    const defaults = {
+      currentView: 'intake',
+      profile: { role: '', helpWith: [], responsibilities: '' },
+      notes: { content: [], automation: [], research: [], data: [], coding: [], ideation: [] },
+      chatMessages: {},
+    };
+    setCurrentView(defaults.currentView);
+    setProfile(defaults.profile);
+    setNotes(defaults.notes);
+    setChatMessages(defaults.chatMessages);
+    setExpandedCategory(null);
+    setChatOpen(false);
+    setChatCategory(null);
+  };
 
   const exportPlan = () => {
     const priorityNotes = Object.entries(notes).flatMap(([catId, catNotes]) => 
@@ -520,6 +537,14 @@ Rules:
             >
               {getTotalNotes() > 0 ? 'Re-generate Ideas' : 'Generate Ideas'}
             </button>
+            {hasExistingSession() && (
+              <button
+                onClick={resetAll}
+                className="w-full text-center text-sm text-gray-400 hover:text-gray-600 transition-colors pt-2"
+              >
+                Start over with a clean slate
+              </button>
+            )}
           </div>
         </div>
       </div>
