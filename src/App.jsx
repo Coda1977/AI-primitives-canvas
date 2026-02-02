@@ -333,33 +333,44 @@ Each idea should be specific to their role, under 40 words, and immediately acti
         body: JSON.stringify({
           system: `You are helping brainstorm AI applications for ${category.title}. ${getProfileContext()}
 
-Your response MUST have two parts, in this order:
+You MUST respond with valid JSON only — no other text. Use this exact format:
+{
+  "message": "Your conversational reply here. Ask a follow-up question to explore their needs. 1-3 sentences. Do not mention or list any ideas here.",
+  "ideas": ["Specific actionable AI idea under 40 words", "Another idea"]
+}
 
-PART 1 — CONVERSATION: A short, natural reply (1-3 sentences). Ask a follow-up question to keep exploring their needs. Do NOT reference or introduce the ideas here — no "here are some ideas", no bullet points, no lists. Just conversation.
-
-PART 2 — IDEAS: You MUST always include 1-3 actionable ideas based on what the user said. Append them after your conversational text using this exact format, one per line:
-[IDEA] Specific actionable AI use case under 40 words [/IDEA]
-
-The ideas are displayed separately from the chat — the user never sees the [IDEA] tags in the conversation. Both parts are required in every response.`,
+Rules:
+- "message": natural conversation only — no idea references, no bullet points
+- "ideas": always include 1-3 actionable ideas based on what the user said
+- Both fields are required in every response
+- Respond with the JSON object only, nothing before or after it`,
           messages: newMessages.map(m => ({ role: m.role, content: m.content }))
         })
       });
 
       const data = await response.json();
-      const assistantMessage = data.content?.[0]?.text || "Tell me more about what you're working on.";
-      
-      const ideaRegex = /\[IDEA\](.*?)\[\/IDEA\]/gs;
-      const matches = [...assistantMessage.matchAll(ideaRegex)];
-      const suggestions = matches.map(m => m[1].trim());
-      
-      const cleanMessage = assistantMessage.replace(ideaRegex, '').trim();
-      
+      const rawText = data.content?.[0]?.text || '';
+
+      let chatText = "Tell me more about what you're working on.";
+      let suggestions = [];
+
+      try {
+        const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          if (parsed.message) chatText = parsed.message;
+          if (Array.isArray(parsed.ideas)) suggestions = parsed.ideas.map(s => s.trim()).filter(Boolean);
+        }
+      } catch {
+        chatText = rawText || chatText;
+      }
+
       setChatMessages(prev => ({
         ...prev,
         [chatCategory]: [...newMessages, {
           id: crypto.randomUUID(),
           role: 'assistant',
-          content: cleanMessage,
+          content: chatText,
           ...(suggestions.length > 0 && { suggestions })
         }]
       }));
