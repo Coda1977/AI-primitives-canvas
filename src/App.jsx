@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import { MessageSquare, Plus, X, Send, Sparkles, Star, Edit3, Check, ChevronDown, ChevronRight, Download, Trash2 } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { MessageSquare, Plus, X, Send, Sparkles, Star, Edit3, Check, ChevronDown, ChevronRight, Download, Trash2, ArrowLeft } from 'lucide-react';
 
 const categories = [
   {
@@ -43,27 +43,41 @@ const helpOptions = [
   { id: 'scale', label: 'Scale my impact beyond my capacity' }
 ];
 
+const STORAGE_KEYS = {
+  notes: 'aiBrainstorm_notes',
+  profile: 'aiBrainstorm_profile',
+  chatMessages: 'aiBrainstorm_chatMessages',
+  currentView: 'aiBrainstorm_currentView',
+};
+
+function loadFromStorage(key, defaultValue) {
+  try {
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : defaultValue;
+  } catch { return defaultValue; }
+}
+
 export default function AIBrainstormCanvas() {
-  const [currentView, setCurrentView] = useState('intake');
-  const [profile, setProfile] = useState({
+  const [currentView, setCurrentView] = useState(() => loadFromStorage(STORAGE_KEYS.currentView, 'intake'));
+  const [profile, setProfile] = useState(() => loadFromStorage(STORAGE_KEYS.profile, {
     role: '',
     helpWith: [],
     responsibilities: ''
-  });
-  
-  const [notes, setNotes] = useState({
+  }));
+
+  const [notes, setNotes] = useState(() => loadFromStorage(STORAGE_KEYS.notes, {
     content: [],
     automation: [],
     research: [],
     data: [],
     coding: [],
     ideation: []
-  });
-  
+  }));
+
   const [expandedCategory, setExpandedCategory] = useState(null);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatCategory, setChatCategory] = useState(null);
-  const [chatMessages, setChatMessages] = useState({});
+  const [chatMessages, setChatMessages] = useState(() => loadFromStorage(STORAGE_KEYS.chatMessages, {}));
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -71,6 +85,11 @@ export default function AIBrainstormCanvas() {
   const [editText, setEditText] = useState('');
   const [manualInput, setManualInput] = useState({});
   const [pendingSuggestions, setPendingSuggestions] = useState([]);
+
+  useEffect(() => { localStorage.setItem(STORAGE_KEYS.currentView, JSON.stringify(currentView)); }, [currentView]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEYS.profile, JSON.stringify(profile)); }, [profile]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEYS.notes, JSON.stringify(notes)); }, [notes]);
+  useEffect(() => { localStorage.setItem(STORAGE_KEYS.chatMessages, JSON.stringify(chatMessages)); }, [chatMessages]);
 
   const toggleHelpOption = (id) => {
     setProfile(prev => ({
@@ -145,7 +164,7 @@ Each idea should be specific to their role, under 40 words, and immediately acti
         Object.keys(ideas).forEach(catId => {
           if (Array.isArray(ideas[catId])) {
             newNotes[catId] = ideas[catId].map((text, idx) => ({
-              id: Date.now() + idx + Math.random(),
+              id: crypto.randomUUID(),
               text: text.trim(),
               priority: false,
               source: 'ai'
@@ -171,7 +190,7 @@ Each idea should be specific to their role, under 40 words, and immediately acti
     setNotes(prev => ({
       ...prev,
       [categoryId]: [...prev[categoryId], { 
-        id: Date.now() + Math.random(), 
+        id: crypto.randomUUID(),
         text: text.trim(), 
         priority: false,
         source 
@@ -222,6 +241,7 @@ Each idea should be specific to their role, under 40 words, and immediately acti
       setChatMessages(prev => ({
         ...prev,
         [categoryId]: [{
+          id: crypto.randomUUID(),
           role: 'assistant',
           content: `Let's explore ${cat.title.toLowerCase()} ideas for your role. What specific challenges or opportunities come to mind?`
         }]
@@ -238,7 +258,7 @@ Each idea should be specific to their role, under 40 words, and immediately acti
     
     const newMessages = [
       ...(chatMessages[chatCategory] || []),
-      { role: 'user', content: userMessage }
+      { id: crypto.randomUUID(), role: 'user', content: userMessage }
     ];
     setChatMessages(prev => ({ ...prev, [chatCategory]: newMessages }));
     setIsLoading(true);
@@ -270,7 +290,7 @@ Keep ideas under 40 words. Be conversational but efficient. Listen for pain poin
       
       setChatMessages(prev => ({
         ...prev,
-        [chatCategory]: [...newMessages, { role: 'assistant', content: cleanMessage }]
+        [chatCategory]: [...newMessages, { id: crypto.randomUUID(), role: 'assistant', content: cleanMessage }]
       }));
       
       if (suggestions.length > 0) {
@@ -279,7 +299,7 @@ Keep ideas under 40 words. Be conversational but efficient. Listen for pain poin
     } catch (error) {
       setChatMessages(prev => ({
         ...prev,
-        [chatCategory]: [...newMessages, { role: 'assistant', content: "What aspects would you like to explore?" }]
+        [chatCategory]: [...newMessages, { id: crypto.randomUUID(), role: 'assistant', content: "What aspects would you like to explore?" }]
       }));
     }
     
@@ -339,9 +359,9 @@ Keep ideas under 40 words. Be conversational but efficient. Listen for pain poin
   // Intake Screen
   if (currentView === 'intake') {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6" style={{ backgroundColor: '#F5F0E8' }}>
+      <div className="min-h-screen flex items-center justify-center p-4 sm:p-6" style={{ backgroundColor: '#F5F0E8' }}>
         <div className="max-w-xl w-full">
-          <div className="text-center mb-16">
+          <div className="text-center mb-8 sm:mb-16">
             <h1 
               className="font-black text-gray-900 mb-4"
               style={{ 
@@ -413,7 +433,7 @@ Keep ideas under 40 words. Be conversational but efficient. Listen for pain poin
               className="w-full bg-gray-900 text-white px-10 py-5 rounded-full font-semibold text-lg hover:-translate-y-1 hover:shadow-lg transition-all duration-300 disabled:opacity-40 disabled:hover:translate-y-0 disabled:hover:shadow-none"
               style={{ backgroundColor: profile.role && profile.helpWith.length > 0 && profile.responsibilities ? '#1A1A1A' : undefined }}
             >
-              Generate Ideas
+              {getTotalNotes() > 0 ? 'Re-generate Ideas' : 'Generate Ideas'}
             </button>
           </div>
         </div>
@@ -425,17 +445,26 @@ Keep ideas under 40 words. Be conversational but efficient. Listen for pain poin
   return (
     <div className="min-h-screen" style={{ backgroundColor: '#F5F0E8' }}>
       {/* Header */}
-      <header className="px-6 py-5 flex items-center justify-between border-b border-gray-200">
-        <div>
-          <h1 className="text-xl font-bold text-gray-900">{profile.role}</h1>
-          <p className="text-sm text-gray-500">{getTotalNotes()} ideas · {getPriorityCount()} starred</p>
+      <header className="px-4 sm:px-6 py-5 flex items-center justify-between border-b border-gray-200">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setCurrentView('intake')}
+            className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+            aria-label="Go back to profile"
+          >
+            <ArrowLeft className="w-5 h-5 text-gray-600" />
+          </button>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">{profile.role}</h1>
+            <p className="text-sm text-gray-500">{getTotalNotes()} ideas · {getPriorityCount()} starred</p>
+          </div>
         </div>
         <button
           onClick={exportPlan}
-          className="flex items-center gap-2 bg-gray-900 text-white px-6 py-3 rounded-full font-medium hover:-translate-y-1 hover:shadow-lg transition-all duration-300"
+          className="flex items-center gap-2 bg-gray-900 text-white px-3 py-3 sm:px-6 rounded-full font-medium hover:-translate-y-1 hover:shadow-lg transition-all duration-300"
         >
           <Download className="w-4 h-4" />
-          Export Plan
+          <span className="hidden sm:inline">Export Plan</span>
         </button>
       </header>
 
@@ -451,7 +480,7 @@ Keep ideas under 40 words. Be conversational but efficient. Listen for pain poin
 
       {/* Categories */}
       {!isGenerating && (
-        <div className="max-w-3xl mx-auto p-6 space-y-4">
+        <div className="max-w-3xl mx-auto px-3 py-4 sm:p-6 space-y-4">
           {categories.map(category => {
             const isExpanded = expandedCategory === category.id;
             const categoryNotes = notes[category.id] || [];
@@ -521,10 +550,10 @@ Keep ideas under 40 words. Be conversational but efficient. Listen for pain poin
                           ) : (
                             <div className="flex items-start justify-between gap-4">
                               <p className="text-gray-700 flex-1">{note.text}</p>
-                              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                                 <button
                                   onClick={() => togglePriority(category.id, note.id)}
-                                  className={`p-2 rounded-full transition-colors ${
+                                  className={`min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full transition-colors ${
                                     note.priority ? 'text-yellow-500' : 'text-gray-400 hover:text-yellow-500'
                                   }`}
                                 >
@@ -532,13 +561,13 @@ Keep ideas under 40 words. Be conversational but efficient. Listen for pain poin
                                 </button>
                                 <button
                                   onClick={() => startEditing(category.id, note)}
-                                  className="p-2 rounded-full text-gray-400 hover:text-gray-600 transition-colors"
+                                  className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 transition-colors"
                                 >
                                   <Edit3 className="w-4 h-4" />
                                 </button>
                                 <button
                                   onClick={() => removeNote(category.id, note.id)}
-                                  className="p-2 rounded-full text-gray-400 hover:text-red-500 transition-colors"
+                                  className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-full text-gray-400 hover:text-red-500 transition-colors"
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </button>
@@ -626,7 +655,7 @@ Keep ideas under 40 words. Be conversational but efficient. Listen for pain poin
           />
           
           {/* Drawer */}
-          <div className="fixed right-0 top-0 bottom-0 w-full max-w-md bg-white shadow-2xl z-50 flex flex-col">
+          <div className="fixed inset-0 sm:left-auto sm:right-0 sm:top-0 sm:bottom-0 sm:w-full sm:max-w-md bg-white shadow-2xl z-50 flex flex-col">
             {/* Chat Header */}
             <div className="px-6 py-4 border-b flex items-center justify-between">
               <div>
@@ -637,17 +666,17 @@ Keep ideas under 40 words. Be conversational but efficient. Listen for pain poin
               </div>
               <button
                 onClick={() => setChatOpen(false)}
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                className="p-3 hover:bg-gray-100 rounded-full transition-colors"
               >
-                <X className="w-5 h-5 text-gray-500" />
+                <X className="w-6 h-6 text-gray-500" />
               </button>
             </div>
 
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              {(chatMessages[chatCategory] || []).map((message, idx) => (
+              {(chatMessages[chatCategory] || []).map((message) => (
                 <div
-                  key={idx}
+                  key={message.id}
                   className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
                   <div
@@ -679,9 +708,9 @@ Keep ideas under 40 words. Be conversational but efficient. Listen for pain poin
               <div className="px-6 py-3 border-t" style={{ backgroundColor: '#FFF9E6' }}>
                 <p className="text-xs font-medium text-gray-600 mb-2">Add to canvas:</p>
                 <div className="space-y-2">
-                  {pendingSuggestions.map((suggestion, idx) => (
+                  {pendingSuggestions.map((suggestion) => (
                     <button
-                      key={idx}
+                      key={suggestion}
                       onClick={() => addSuggestionAsNote(suggestion)}
                       className="w-full text-left p-3 bg-white rounded-xl hover:bg-gray-50 transition-colors text-sm text-gray-700 flex items-start gap-2"
                     >
