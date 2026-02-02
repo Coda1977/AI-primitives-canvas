@@ -57,6 +57,71 @@ function loadFromStorage(key, defaultValue) {
   } catch { return defaultValue; }
 }
 
+const GENERATING_STEPS = [
+  'Analyzing your profile',
+  'Brainstorming ideas',
+  'Tailoring to your role',
+  'Organizing by category',
+  'Polishing suggestions',
+];
+
+function GeneratingIndicator() {
+  const [step, setStep] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      setStep(s => (s + 1) % GENERATING_STEPS.length);
+    }, 2400);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <div className="flex items-center justify-center py-32">
+      <div className="text-center max-w-xs mx-auto">
+        {/* Animated sparkle icon */}
+        <div className="relative w-16 h-16 mx-auto mb-6">
+          <Sparkles
+            className="w-16 h-16 text-gray-900 absolute inset-0"
+            style={{ animation: 'spin 4s linear infinite' }}
+          />
+          <div
+            className="absolute inset-0 rounded-full"
+            style={{
+              background: 'radial-gradient(circle, rgba(26,26,26,0.08) 0%, transparent 70%)',
+              animation: 'pulse 2s ease-in-out infinite',
+            }}
+          />
+        </div>
+
+        {/* Step label */}
+        <p
+          key={step}
+          className="text-lg font-medium text-gray-900 mb-2"
+          style={{ animation: 'fadeUp 0.4s ease-out' }}
+        >
+          {GENERATING_STEPS[step]}
+        </p>
+
+        {/* Progress dots */}
+        <div className="flex justify-center gap-2 mt-4">
+          {GENERATING_STEPS.map((_, i) => (
+            <span
+              key={i}
+              className="block w-2 h-2 rounded-full transition-all duration-500"
+              style={{
+                backgroundColor: i <= step ? '#1A1A1A' : '#D1D5DB',
+                transform: i === step ? 'scale(1.4)' : 'scale(1)',
+              }}
+            />
+          ))}
+        </div>
+
+        <p className="text-sm text-gray-400 mt-6">Building your canvas&hellip;</p>
+      </div>
+    </div>
+  );
+}
+
 export default function AIBrainstormCanvas() {
   const [currentView, setCurrentView] = useState(() => loadFromStorage(STORAGE_KEYS.currentView, 'intake'));
   const [profile, setProfile] = useState(() => loadFromStorage(STORAGE_KEYS.profile, {
@@ -469,14 +534,7 @@ Keep ideas under 40 words. Be conversational but efficient. Listen for pain poin
       </header>
 
       {/* Loading State */}
-      {isGenerating && (
-        <div className="flex items-center justify-center py-32">
-          <div className="text-center">
-            <Sparkles className="w-12 h-12 text-gray-400 mx-auto mb-4 animate-pulse" />
-            <p className="text-lg text-gray-600">Generating ideas for you...</p>
-          </div>
-        </div>
-      )}
+      {isGenerating && <GeneratingIndicator />}
 
       {/* Categories */}
       {!isGenerating && (
