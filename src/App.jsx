@@ -540,9 +540,9 @@ Rules:
             {hasExistingSession() && (
               <button
                 onClick={resetAll}
-                className="w-full text-center text-sm text-gray-400 hover:text-gray-600 transition-colors pt-2"
+                className="w-full bg-white text-gray-600 px-10 py-4 rounded-full font-medium text-base hover:bg-gray-100 transition-all duration-300 border border-gray-200"
               >
-                Start over with a clean slate
+                Start Over with a Clean Slate
               </button>
             )}
           </div>
