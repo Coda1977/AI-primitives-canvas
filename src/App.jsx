@@ -333,10 +333,14 @@ Each idea should be specific to their role, under 40 words, and immediately acti
         body: JSON.stringify({
           system: `You are helping brainstorm AI applications for ${category.title}. ${getProfileContext()}
 
-When you identify actionable ideas, format them as:
-[IDEA] Your specific actionable idea here [/IDEA]
+Your response has two SEPARATE parts:
 
-Keep ideas under 40 words. Be conversational but efficient. Listen for pain points or opportunities and suggest relevant AI applications.`,
+PART 1 — CONVERSATION: Have a natural back-and-forth. Ask follow-up questions, dig into pain points, explore their workflow. Do NOT mention or introduce any ideas in this part. Never say "here are some ideas" or reference suggestions. Just talk.
+
+PART 2 — IDEAS (optional): If the conversation so far reveals actionable AI use cases, silently append them AFTER your conversational text using this exact format:
+[IDEA] One specific actionable idea under 40 words [/IDEA]
+
+The user will see ideas separately from the chat. Keep conversation and ideas completely independent.`,
           messages: newMessages.map(m => ({ role: m.role, content: m.content }))
         })
       });
