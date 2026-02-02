@@ -149,7 +149,6 @@ export default function AIBrainstormCanvas() {
   const [editingNote, setEditingNote] = useState(null);
   const [editText, setEditText] = useState('');
   const [manualInput, setManualInput] = useState({});
-  const [pendingSuggestions, setPendingSuggestions] = useState([]);
 
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.currentView, JSON.stringify(currentView)); }, [currentView]);
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.profile, JSON.stringify(profile)); }, [profile]);
@@ -299,7 +298,6 @@ Each idea should be specific to their role, under 40 words, and immediately acti
   const openChat = (categoryId) => {
     setChatCategory(categoryId);
     setChatOpen(true);
-    setPendingSuggestions([]);
     
     if (!chatMessages[categoryId]) {
       const cat = categories.find(c => c.id === categoryId);
@@ -327,7 +325,6 @@ Each idea should be specific to their role, under 40 words, and immediately acti
     ];
     setChatMessages(prev => ({ ...prev, [chatCategory]: newMessages }));
     setIsLoading(true);
-    setPendingSuggestions([]);
 
     try {
       const response = await fetch('/api/chat', {
@@ -355,12 +352,13 @@ Keep ideas under 40 words. Be conversational but efficient. Listen for pain poin
       
       setChatMessages(prev => ({
         ...prev,
-        [chatCategory]: [...newMessages, { id: crypto.randomUUID(), role: 'assistant', content: cleanMessage }]
+        [chatCategory]: [...newMessages, {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: cleanMessage,
+          ...(suggestions.length > 0 && { suggestions })
+        }]
       }));
-      
-      if (suggestions.length > 0) {
-        setPendingSuggestions(suggestions);
-      }
     } catch (error) {
       setChatMessages(prev => ({
         ...prev,
@@ -371,9 +369,16 @@ Keep ideas under 40 words. Be conversational but efficient. Listen for pain poin
     setIsLoading(false);
   };
 
-  const addSuggestionAsNote = (suggestion) => {
+  const addSuggestionAsNote = (messageId, suggestion) => {
     addNote(chatCategory, suggestion, 'ai');
-    setPendingSuggestions(prev => prev.filter(s => s !== suggestion));
+    setChatMessages(prev => ({
+      ...prev,
+      [chatCategory]: prev[chatCategory].map(m =>
+        m.id === messageId
+          ? { ...m, suggestions: m.suggestions?.filter(s => s !== suggestion) }
+          : m
+      )
+    }));
   };
 
   const getTotalNotes = () => Object.values(notes).reduce((sum, arr) => sum + arr.length, 0);
@@ -733,19 +738,33 @@ Keep ideas under 40 words. Be conversational but efficient. Listen for pain poin
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
               {(chatMessages[chatCategory] || []).map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-[85%] rounded-2xl px-4 py-3 ${
-                      message.role === 'user'
-                        ? 'bg-gray-900 text-white'
-                        : 'bg-gray-100 text-gray-800'
-                    }`}
-                  >
-                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                <div key={message.id} className="space-y-2">
+                  <div className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div
+                      className={`max-w-[85%] rounded-2xl px-4 py-3 ${
+                        message.role === 'user'
+                          ? 'bg-gray-900 text-white'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}
+                    >
+                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                    </div>
                   </div>
+                  {message.suggestions?.length > 0 && (
+                    <div className="ml-2 space-y-1.5">
+                      <p className="text-xs font-medium text-gray-400 ml-1">Add to canvas:</p>
+                      {message.suggestions.map((suggestion) => (
+                        <button
+                          key={suggestion}
+                          onClick={() => addSuggestionAsNote(message.id, suggestion)}
+                          className="w-full text-left p-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 transition-colors text-sm text-gray-700 flex items-start gap-2"
+                        >
+                          <Plus className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
               {isLoading && (
@@ -760,25 +779,6 @@ Keep ideas under 40 words. Be conversational but efficient. Listen for pain poin
                 </div>
               )}
             </div>
-
-            {/* Pending Suggestions */}
-            {pendingSuggestions.length > 0 && (
-              <div className="px-6 py-3 border-t" style={{ backgroundColor: '#FFF9E6' }}>
-                <p className="text-xs font-medium text-gray-600 mb-2">Add to canvas:</p>
-                <div className="space-y-2">
-                  {pendingSuggestions.map((suggestion) => (
-                    <button
-                      key={suggestion}
-                      onClick={() => addSuggestionAsNote(suggestion)}
-                      className="w-full text-left p-3 bg-white rounded-xl hover:bg-gray-50 transition-colors text-sm text-gray-700 flex items-start gap-2"
-                    >
-                      <Plus className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                      {suggestion}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {/* Input */}
             <div className="p-4 border-t">
