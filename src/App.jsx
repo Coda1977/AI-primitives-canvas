@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageSquare, Plus, X, Send, Sparkles, Star, Edit3, Check, ChevronDown, ChevronRight, Download, Trash2, ArrowLeft } from 'lucide-react';
+import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx';
+import { saveAs } from 'file-saver';
 
 const categories = [
   {
@@ -416,46 +418,69 @@ Rules:
     setChatCategory(null);
   };
 
-  const exportPlan = () => {
-    const priorityNotes = Object.entries(notes).flatMap(([catId, catNotes]) => 
+  const exportPlan = async () => {
+    const priorityNotes = Object.entries(notes).flatMap(([catId, catNotes]) =>
       catNotes.filter(n => n.priority).map(n => ({ ...n, category: categories.find(c => c.id === catId)?.title }))
     );
-    const otherNotes = Object.entries(notes).flatMap(([catId, catNotes]) => 
+    const otherNotes = Object.entries(notes).flatMap(([catId, catNotes]) =>
       catNotes.filter(n => !n.priority).map(n => ({ ...n, category: categories.find(c => c.id === catId)?.title }))
     );
 
-    let md = `# AI Integration Plan\n`;
-    md += `**${profile.role}**\n\n`;
-    md += `---\n\n`;
-    
+    const children = [
+      new Paragraph({
+        text: 'AI Integration Plan',
+        heading: HeadingLevel.TITLE,
+      }),
+      new Paragraph({
+        children: [new TextRun({ text: profile.role, bold: true, size: 28 })],
+        spacing: { after: 400 },
+      }),
+    ];
+
     if (priorityNotes.length > 0) {
-      md += `## ⭐ Priority Ideas\n\n`;
+      children.push(
+        new Paragraph({ text: '⭐ Priority Ideas', heading: HeadingLevel.HEADING_1, spacing: { before: 400 } })
+      );
       priorityNotes.forEach(n => {
-        md += `- **${n.category}:** ${n.text}\n`;
+        children.push(
+          new Paragraph({
+            children: [
+              new TextRun({ text: `${n.category}: `, bold: true }),
+              new TextRun({ text: n.text }),
+            ],
+            bullet: { level: 0 },
+          })
+        );
       });
-      md += `\n`;
     }
-    
+
     if (otherNotes.length > 0) {
-      md += `## All Ideas\n\n`;
+      children.push(
+        new Paragraph({ text: 'All Ideas', heading: HeadingLevel.HEADING_1, spacing: { before: 400 } })
+      );
       const byCategory = {};
       otherNotes.forEach(n => {
         if (!byCategory[n.category]) byCategory[n.category] = [];
         byCategory[n.category].push(n.text);
       });
       Object.entries(byCategory).forEach(([cat, ideas]) => {
-        md += `### ${cat}\n`;
-        ideas.forEach(idea => md += `- ${idea}\n`);
-        md += `\n`;
+        children.push(
+          new Paragraph({ text: cat, heading: HeadingLevel.HEADING_2, spacing: { before: 200 } })
+        );
+        ideas.forEach(idea => {
+          children.push(
+            new Paragraph({ text: idea, bullet: { level: 0 } })
+          );
+        });
       });
     }
-    
-    const blob = new Blob([md], { type: 'text/markdown' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'ai-integration-plan.md';
-    a.click();
+
+    const doc = new Document({
+      sections: [{ children }],
+    });
+
+    const blob = await Packer.toBlob(doc);
+    saveAs(blob, 'ai-integration-plan.docx');
   };
 
   // Intake Screen
