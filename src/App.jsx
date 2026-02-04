@@ -216,15 +216,46 @@ Each idea should be specific to their role, under 40 words, and immediately acti
         })
       });
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('HTTP error:', response.status, errorData);
+        alert('API request failed: ' + (errorData.error || response.statusText));
+        setCurrentView('intake');
+        setIsGenerating(false);
+        return;
+      }
+
       const data = await response.json();
-      const text = data.content?.[0]?.text || '{}';
-      
+      console.log('API response:', data);
+
+      if (data.error) {
+        console.error('API returned error:', data.error);
+        alert('Failed to generate ideas: ' + data.error);
+        setCurrentView('intake');
+        setIsGenerating(false);
+        return;
+      }
+
+      const text = data.content?.[0]?.text || '';
+      console.log('Extracted text:', text);
+
+      if (!text) {
+        console.error('No text in API response');
+        alert('No response from AI. Please try again.');
+        setCurrentView('intake');
+        setIsGenerating(false);
+        return;
+      }
+
       // Parse JSON from response
       const jsonMatch = text.match(/\{[\s\S]*\}/);
+      console.log('JSON match:', jsonMatch?.[0]);
+
       if (jsonMatch) {
         const ideas = JSON.parse(jsonMatch[0]);
+        console.log('Parsed ideas:', ideas);
         const newNotes = {};
-        
+
         Object.keys(ideas).forEach(catId => {
           if (Array.isArray(ideas[catId])) {
             newNotes[catId] = ideas[catId].map((text, idx) => ({
@@ -235,14 +266,23 @@ Each idea should be specific to their role, under 40 words, and immediately acti
             }));
           }
         });
-        
+
+        console.log('New notes:', newNotes);
         setNotes(prev => ({
           ...prev,
           ...newNotes
         }));
+      } else {
+        console.error('No JSON found in response');
+        alert('Could not parse AI response. Please try again.');
+        setCurrentView('intake');
+        setIsGenerating(false);
+        return;
       }
     } catch (error) {
       console.error('Error generating ideas:', error);
+      alert('Error generating ideas: ' + error.message);
+      setCurrentView('intake');
     }
     
     setIsGenerating(false);
